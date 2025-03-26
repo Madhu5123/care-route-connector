@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import Map from "@/components/Map";
-import { Activity, AlertTriangle, Calendar, Clock, Heart, Hospital, Users, BookMedical } from "lucide-react";
+import { Activity, AlertTriangle, Calendar, Clock, Heart, Hospital, Users, Stethoscope } from "lucide-react";
 
 const HospitalDashboard = () => {
   const { userProfile, loading, isAuthenticated } = useAuth();
@@ -29,7 +29,19 @@ const HospitalDashboard = () => {
   // Subscribe to ambulance locations from Firebase
   useEffect(() => {
     const unsubscribe = subscribeToAmbulanceLocations((data) => {
-      setAmbulances(data);
+      // Enhance the ambulance data with default values for any missing properties
+      const enhancedData = data.map(ambulance => ({
+        ...ambulance,
+        eta: ambulance.eta || "12 minutes",
+        hospital_prepared: ambulance.hospital_prepared || false,
+        patientInfo: {
+          ...ambulance.patientInfo,
+          age: ambulance.patientInfo?.age || "Unknown",
+          gender: ambulance.patientInfo?.gender || "Unknown",
+          condition: ambulance.patientInfo?.condition || "Unknown"
+        }
+      }));
+      setAmbulances(enhancedData);
     });
 
     return () => unsubscribe();
@@ -164,7 +176,7 @@ const HospitalDashboard = () => {
                 <TabsContent value="incoming" className="pt-2 pb-4">
                   {filteredAmbulances.length === 0 ? (
                     <div className="py-8 text-center text-muted-foreground">
-                      <BookMedical className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                      <Stethoscope className="h-10 w-10 mx-auto mb-2 opacity-50" />
                       <p>No incoming ambulances</p>
                     </div>
                   ) : (
@@ -244,7 +256,7 @@ const HospitalDashboard = () => {
                 <TabsContent value="nearby" className="pt-2 pb-4">
                   {filteredAmbulances.length === 0 ? (
                     <div className="py-8 text-center text-muted-foreground">
-                      <BookMedical className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                      <Stethoscope className="h-10 w-10 mx-auto mb-2 opacity-50" />
                       <p>No nearby ambulances</p>
                     </div>
                   ) : (

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,7 +27,12 @@ const PoliceDashboard = () => {
   // Subscribe to ambulance locations from Firebase
   useEffect(() => {
     const unsubscribe = subscribeToAmbulanceLocations((data) => {
-      setAmbulances(data);
+      // Enhance the ambulance data with default values for any missing properties
+      const enhancedData = data.map(ambulance => ({
+        ...ambulance,
+        route_cleared: ambulance.route_cleared || false
+      }));
+      setAmbulances(enhancedData);
     });
 
     return () => unsubscribe();
@@ -169,6 +173,7 @@ const PoliceDashboard = () => {
               </CardContent>
             </Card>
 
+            {/* Traffic Controls and Emergency alert cards */}
             <Card className="glass-card animate-scale-in">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Traffic Controls</CardTitle>
