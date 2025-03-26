@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { GoogleMap, useJsApiLoader, Marker, DirectionsRenderer, InfoWindow } from "@react-google-maps/api";
 import { AmbulanceData, subscribeToAmbulanceLocations } from "@/lib/firebase";
@@ -17,7 +16,7 @@ const defaultCenter = {
 };
 
 // Map libraries needed
-const libraries: ("places" | "drawing" | "geometry" | "visualization" | "localContext")[] = ["places", "geometry"];
+const libraries: ("places" | "drawing" | "geometry" | "visualization")[] = ["places", "geometry"];
 
 interface MapProps {
   ambulanceMode?: boolean;

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,23 +18,20 @@ const HospitalDashboard = () => {
   const [activeTab, setActiveTab] = useState("incoming");
   const navigate = useNavigate();
 
-  // Redirect if not authenticated or not a hospital staff
   useEffect(() => {
     if (!loading && (!isAuthenticated || userProfile?.role !== "hospital")) {
       navigate("/login");
     }
   }, [loading, isAuthenticated, userProfile, navigate]);
 
-  // Subscribe to ambulance locations from Firebase
   useEffect(() => {
     const unsubscribe = subscribeToAmbulanceLocations((data) => {
-      // Enhance the ambulance data with default values for any missing properties
       const enhancedData = data.map(ambulance => ({
         ...ambulance,
         eta: ambulance.eta || "12 minutes",
         hospital_prepared: ambulance.hospital_prepared || false,
         patientInfo: {
-          ...ambulance.patientInfo,
+          ...(ambulance.patientInfo || { severity: "medium", notes: "" }),
           age: ambulance.patientInfo?.age || "Unknown",
           gender: ambulance.patientInfo?.gender || "Unknown",
           condition: ambulance.patientInfo?.condition || "Unknown"
@@ -47,13 +43,8 @@ const HospitalDashboard = () => {
     return () => unsubscribe();
   }, []);
 
-  // Mock function to prepare for incoming patient
   const prepareForPatient = async (ambulanceId: string) => {
     try {
-      // In a real app, this would send notifications to the hospital staff
-      // and perhaps update systems to prepare for the incoming patient
-      
-      // Simulate an API call
       await new Promise((resolve) => setTimeout(resolve, 1500));
       
       toast({
@@ -61,7 +52,6 @@ const HospitalDashboard = () => {
         description: "Medical team has been notified of incoming patient.",
       });
 
-      // Update UI to show we're prepared
       setAmbulances(ambulances.map(amb => 
         amb.id === ambulanceId ? { ...amb, hospital_prepared: true } : amb
       ));
@@ -75,7 +65,6 @@ const HospitalDashboard = () => {
     }
   };
 
-  // Filter ambulances for the current tab
   const filteredAmbulances = ambulances.filter(amb => {
     if (activeTab === "incoming") {
       return amb.status === "on_duty" && 
@@ -111,9 +100,7 @@ const HospitalDashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left column - stats and incoming patients */}
           <div className="space-y-6 lg:col-span-1">
-            {/* Hospital stats */}
             <Card className="glass-card animate-scale-in">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Hospital Status</CardTitle>
@@ -159,7 +146,6 @@ const HospitalDashboard = () => {
               </CardContent>
             </Card>
 
-            {/* Ambulance tabs */}
             <Card className="glass-card animate-scale-in overflow-hidden">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg">Ambulance Monitoring</CardTitle>
@@ -312,7 +298,6 @@ const HospitalDashboard = () => {
               </Tabs>
             </Card>
 
-            {/* Critical alert */}
             <Card className="glass-card animate-scale-in border-hospital-light">
               <CardHeader className="pb-3 bg-hospital-light/20 rounded-t-lg">
                 <CardTitle className="text-lg flex items-center">
@@ -357,7 +342,6 @@ const HospitalDashboard = () => {
             </Card>
           </div>
 
-          {/* Right column - map */}
           <div className="lg:col-span-2">
             <Card className="h-[calc(100vh-10rem)] glass-card overflow-hidden animate-scale-in">
               <CardHeader className="pb-2">
