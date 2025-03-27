@@ -54,8 +54,8 @@ const AmbulanceCard: React.FC<AmbulanceCardProps> = ({
               <span>Patient:</span>
               <span>
                 {ambulance.patientInfo?.age
-                  ? `${ambulance.patientInfo.gender || "Unknown"}, ${
-                      ambulance.patientInfo.age
+                  ? `${ambulance.patientInfo?.gender || "Unknown"}, ${
+                      ambulance.patientInfo?.age
                     } yrs`
                   : "Details pending"}
               </span>
