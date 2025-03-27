@@ -15,6 +15,7 @@ import PoliceDashboard from "./pages/police/Dashboard";
 import HospitalDashboard from "./pages/hospital/Dashboard";
 import AdminDashboard from "./pages/admin/Dashboard";
 import NotFound from "./pages/NotFound";
+import DashboardHeader from "./components/common/DashboardHeader";
 
 const queryClient = new QueryClient();
 
@@ -29,10 +30,10 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/ambulance/dashboard" element={<AmbulanceDashboard />} />
-            <Route path="/police/dashboard" element={<PoliceDashboard />} />
-            <Route path="/hospital/dashboard" element={<HospitalDashboard />} />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/ambulance/dashboard" element={<><DashboardHeader /><AmbulanceDashboard /></>} />
+            <Route path="/police/dashboard" element={<><DashboardHeader /><PoliceDashboard /></>} />
+            <Route path="/hospital/dashboard" element={<><DashboardHeader /><HospitalDashboard /></>} />
+            <Route path="/admin/dashboard" element={<><DashboardHeader /><AdminDashboard /></>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
