@@ -26,12 +26,12 @@ import { getStorage } from "firebase/storage";
 // Your Firebase configuration
 // Note: In a production environment, these would be stored securely
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY", // Replace with your Firebase API key
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDoaSY-n_ebkRccENDb9HHubXQyQtIxfvI", // Replace with your Firebase API key
+  authDomain: "lifeline-ai-485e3.firebaseapp.com",
+  projectId: "lifeline-ai-485e3",
+  storageBucket: "lifeline-ai-485e3.firebasestorage.app",
+  messagingSenderId: "114223980407",
+  appId: "1:114223980407:web:732e297a81e32a9efbcb72"
 };
 
 // Initialize Firebase
@@ -67,6 +67,9 @@ export interface AmbulanceData {
   driverId: string;
   vehicleId: string;
   status: 'available' | 'on_duty' | 'returning' | 'maintenance';
+  eta?: string;  // ✅ Add missing field
+  hospital_prepared?: boolean;  // ✅ Add missing field
+  route_cleared?: boolean;  // ✅ Add missing field
   currentLocation?: {
     lat: number;
     lng: number;
@@ -79,9 +82,13 @@ export interface AmbulanceData {
   patientInfo?: {
     severity: 'low' | 'medium' | 'high' | 'critical';
     notes: string;
+    age?: string;  // ✅ Add missing field
+    gender?: string;  // ✅ Add missing field
+    condition?: string;  // ✅ Add missing field
   };
   timestamp: Date;
 }
+
 
 // Authentication functions
 export const signUp = async (
