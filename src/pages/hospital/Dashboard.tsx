@@ -34,9 +34,6 @@ const HospitalDashboard = () => {
         hospital_prepared: ambulance.hospital_prepared || false,
         patientInfo: {
           ...(ambulance.patientInfo || { severity: "medium", notes: "" }),
-          age: ambulance.patientInfo?.age || "Unknown",
-          gender: ambulance.patientInfo?.gender || "Unknown",
-          condition: ambulance.patientInfo?.condition || "Unknown"
         }
       }));
       setAmbulances(enhancedData);
