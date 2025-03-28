@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { signUp, UserRole } from "@/lib/firebase";
@@ -10,7 +9,7 @@ import { toast } from "@/components/ui/use-toast";
 import { Loader2, UserPlus, Upload, IdCard, Camera, Hospital } from "lucide-react";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 
 const Register = () => {
   const [email, setEmail] = useState("");
@@ -36,11 +35,7 @@ const Register = () => {
   const uploadFile = async (file: File, path: string): Promise<string> => {
     if (!file) return "";
     
-    const storage = getStorage();
-    const storageRef = ref(storage, `${path}/${Date.now()}_${file.name}`);
-    
-    await uploadBytes(storageRef, file);
-    return await getDownloadURL(storageRef);
+    return await uploadToCloudinary(file, path);
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -73,7 +68,6 @@ const Register = () => {
       return;
     }
 
-    // Validate role-specific document uploads
     if (role === UserRole.AMBULANCE && (!idCard || !selfie || !vehiclePhoto)) {
       toast({
         title: "Documents required",
@@ -95,7 +89,6 @@ const Register = () => {
     setLoading(true);
 
     try {
-      // Upload documents
       let documents: Record<string, string> = {};
       
       if (idCard) {
@@ -118,8 +111,8 @@ const Register = () => {
           displayName,
           phoneNumber,
           organization,
-          verified: false, // All users need verification
-          documents, // Add uploaded document URLs
+          verified: false,
+          documents,
         }
       );
       
@@ -141,7 +134,6 @@ const Register = () => {
     }
   };
 
-  // Get appropriate document requirements based on role
   const getDocumentRequirements = (selectedRole: string) => {
     switch(selectedRole) {
       case UserRole.AMBULANCE:
@@ -274,7 +266,6 @@ const Register = () => {
                 </Select>
               </div>
 
-              {/* Document upload section with role-specific requirements */}
               {role && (
                 <div className="space-y-3 border rounded-md p-3 bg-muted/30">
                   <h3 className="text-sm font-medium">Required Documents</h3>
