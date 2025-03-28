@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import LogoutButton from './LogoutButton';
-import { Shield, AlertCircle } from 'lucide-react';
+import { Shield, AlertCircle, CheckCircle } from 'lucide-react';
 
 const DashboardHeader = () => {
   const { userProfile } = useAuth();
@@ -23,6 +23,12 @@ const DashboardHeader = () => {
             <span className="rounded-full bg-yellow-100 text-yellow-800 px-2.5 py-0.5 text-xs font-medium flex items-center">
               <AlertCircle className="h-3 w-3 mr-1" />
               Pending Verification
+            </span>
+          )}
+          {userProfile?.verified === true && (
+            <span className="rounded-full bg-green-100 text-green-800 px-2.5 py-0.5 text-xs font-medium flex items-center">
+              <CheckCircle className="h-3 w-3 mr-1" />
+              Verified
             </span>
           )}
         </div>

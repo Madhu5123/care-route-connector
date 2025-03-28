@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
-import { Loader2, UserPlus, Upload } from "lucide-react";
+import { Loader2, UserPlus, Upload, IdCard, Camera, Hospital } from "lucide-react";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -141,6 +141,38 @@ const Register = () => {
     }
   };
 
+  // Get appropriate document requirements based on role
+  const getDocumentRequirements = (selectedRole: string) => {
+    switch(selectedRole) {
+      case UserRole.AMBULANCE:
+        return {
+          idTitle: "Driver's ID Card/License",
+          selfieTitle: "Driver's Selfie",
+          requireVehicle: true,
+        };
+      case UserRole.POLICE:
+        return {
+          idTitle: "Police ID Card",
+          selfieTitle: "Selfie in Uniform",
+          requireVehicle: false,
+        };
+      case UserRole.HOSPITAL:
+        return {
+          idTitle: "Hospital ID Card",
+          selfieTitle: "Selfie in Hospital",
+          requireVehicle: false,
+        };
+      default:
+        return {
+          idTitle: "ID Card",
+          selfieTitle: "Selfie",
+          requireVehicle: false,
+        };
+    }
+  };
+
+  const docRequirements = role ? getDocumentRequirements(role) : null;
+
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-background to-secondary/50 p-4">
       <div className="w-full max-w-md">
@@ -242,14 +274,17 @@ const Register = () => {
                 </Select>
               </div>
 
-              {/* Document upload section */}
+              {/* Document upload section with role-specific requirements */}
               {role && (
                 <div className="space-y-3 border rounded-md p-3 bg-muted/30">
                   <h3 className="text-sm font-medium">Required Documents</h3>
                   
                   <div className="space-y-2">
                     <label className="flex flex-col space-y-1">
-                      <span className="text-sm">ID Card/License *</span>
+                      <span className="text-sm flex items-center">
+                        <IdCard className="h-4 w-4 mr-1" />
+                        {docRequirements?.idTitle} *
+                      </span>
                       <div className="flex items-center space-x-2 bg-background rounded border p-2">
                         <Input 
                           type="file" 
@@ -266,7 +301,10 @@ const Register = () => {
                   
                   <div className="space-y-2">
                     <label className="flex flex-col space-y-1">
-                      <span className="text-sm">Selfie/Photograph *</span>
+                      <span className="text-sm flex items-center">
+                        <Camera className="h-4 w-4 mr-1" />
+                        {docRequirements?.selfieTitle} *
+                      </span>
                       <div className="flex items-center space-x-2 bg-background rounded border p-2">
                         <Input 
                           type="file" 
@@ -284,7 +322,10 @@ const Register = () => {
                   {role === UserRole.AMBULANCE && (
                     <div className="space-y-2">
                       <label className="flex flex-col space-y-1">
-                        <span className="text-sm">Ambulance Photo *</span>
+                        <span className="text-sm flex items-center">
+                          <Hospital className="h-4 w-4 mr-1" />
+                          Ambulance Photo *
+                        </span>
                         <div className="flex items-center space-x-2 bg-background rounded border p-2">
                           <Input 
                             type="file" 
@@ -299,6 +340,10 @@ const Register = () => {
                       </label>
                     </div>
                   )}
+
+                  <div className="mt-2 p-2 bg-yellow-100 rounded-md text-sm text-yellow-800">
+                    <p>Note: You will not be able to log in until an administrator approves your account.</p>
+                  </div>
                 </div>
               )}
 
