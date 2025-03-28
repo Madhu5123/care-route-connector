@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,7 +23,6 @@ import {
   Users 
 } from "lucide-react";
 
-// Mock data for admin dashboard
 const mockUsers = [
   {
     uid: "1",
@@ -132,34 +130,52 @@ const AdminDashboard = () => {
   const [pendingUsers, setPendingUsers] = useState<UserProfile[]>([]);
   const [activeUsers, setActiveUsers] = useState<UserProfile[]>([]);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const navigate = useNavigate();
 
-  // Redirect if not authenticated or not an admin
   useEffect(() => {
     if (!loading && (!isAuthenticated || userProfile?.role !== "admin")) {
       navigate("/login");
     }
   }, [loading, isAuthenticated, userProfile, navigate]);
 
-  // Load mock users data
   useEffect(() => {
-    // In a real app, this would fetch from Firebase
-    const pending = mockUsers.filter(user => !user.verified);
-    const active = mockUsers.filter(user => user.verified);
+    const loadUsers = async () => {
+      try {
+        const pendingUsersData = await getPendingUsers();
+        setPendingUsers(pendingUsersData);
+        
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("verified", "==", true));
+        const querySnapshot = await getDocs(q);
+        
+        const activeUsersData: UserProfile[] = [];
+        querySnapshot.forEach((doc) => {
+          activeUsersData.push(doc.data() as UserProfile);
+        });
+        
+        setActiveUsers(activeUsersData);
+      } catch (error) {
+        console.error("Error loading users:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load users. Please try again.",
+          variant: "destructive",
+        });
+      }
+    };
     
-    setPendingUsers(pending);
-    setActiveUsers(active);
-  }, []);
+    if (isAuthenticated && userProfile?.role === "admin") {
+      loadUsers();
+    }
+  }, [isAuthenticated, userProfile]);
 
-  // Mock function to verify a user
-  const verifyUser = async (uid: string) => {
+  const handleVerifyUser = async (uid: string) => {
     setIsVerifying(true);
     
     try {
-      // In a real app, this would update Firebase
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await verifyUser(uid);
       
-      // Update UI
       const userToVerify = pendingUsers.find(u => u.uid === uid);
       if (userToVerify) {
         const verifiedUser = { ...userToVerify, verified: true };
@@ -183,6 +199,30 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleRejectUser = async (uid: string) => {
+    try {
+      await rejectUser(uid);
+      
+      setPendingUsers(pendingUsers.filter(u => u.uid !== uid));
+      
+      toast({
+        title: "User rejected",
+        description: "The user has been rejected and will not be able to log in.",
+      });
+    } catch (error) {
+      console.error("Error rejecting user:", error);
+      toast({
+        title: "Rejection failed",
+        description: "Could not reject this user. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const viewUserDocuments = (user: UserProfile) => {
+    setSelectedUser(user);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -204,7 +244,6 @@ const AdminDashboard = () => {
           </p>
         </div>
 
-        {/* Stats cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <Card className="glass-card animate-scale-in">
             <CardContent className="pt-6">
@@ -262,9 +301,7 @@ const AdminDashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left column */}
           <div className="space-y-6 lg:col-span-2">
-            {/* Pending approvals */}
             {pendingUsers.length > 0 && (
               <Card className="glass-card animate-scale-in border-admin-light">
                 <CardHeader className="pb-3 bg-admin-light/20">
@@ -282,6 +319,7 @@ const AdminDashboard = () => {
                           <TableHead>Name</TableHead>
                           <TableHead>Role</TableHead>
                           <TableHead>Organization</TableHead>
+                          <TableHead>Documents</TableHead>
                           <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -312,12 +350,21 @@ const AdminDashboard = () => {
                             </TableCell>
                             <TableCell>{user.organization}</TableCell>
                             <TableCell>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => viewUserDocuments(user)}
+                              >
+                                View Docs
+                              </Button>
+                            </TableCell>
+                            <TableCell>
                               <div className="flex space-x-2">
                                 <Button
                                   variant="default"
                                   size="sm"
                                   className="bg-admin-DEFAULT hover:bg-admin-dark"
-                                  onClick={() => verifyUser(user.uid)}
+                                  onClick={() => handleVerifyUser(user.uid)}
                                   disabled={isVerifying}
                                 >
                                   <UserCheck className="h-4 w-4 mr-1" />
@@ -327,6 +374,7 @@ const AdminDashboard = () => {
                                   variant="outline"
                                   size="sm"
                                   className="text-destructive hover:text-destructive"
+                                  onClick={() => handleRejectUser(user.uid)}
                                 >
                                   Reject
                                 </Button>
@@ -341,7 +389,6 @@ const AdminDashboard = () => {
               </Card>
             )}
 
-            {/* Tabs for system management */}
             <Card className="glass-card animate-scale-in overflow-hidden">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg">System Management</CardTitle>
@@ -513,9 +560,79 @@ const AdminDashboard = () => {
             </Card>
           </div>
 
-          {/* Right column */}
           <div className="space-y-6">
-            {/* System alerts */}
+            {selectedUser && (
+              <Card className="glass-card animate-scale-in">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">User Documents</CardTitle>
+                  <CardDescription>
+                    Reviewing documents for {selectedUser.displayName}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {selectedUser.documents?.idCardUrl && (
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-medium">ID Card/License</h3>
+                      <div className="bg-muted/30 p-2 rounded-md">
+                        <img 
+                          src={selectedUser.documents.idCardUrl} 
+                          alt="ID Card" 
+                          className="max-h-60 rounded-md mx-auto"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedUser.documents?.selfieUrl && (
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-medium">Selfie/Photograph</h3>
+                      <div className="bg-muted/30 p-2 rounded-md">
+                        <img 
+                          src={selectedUser.documents.selfieUrl} 
+                          alt="Selfie" 
+                          className="max-h-60 rounded-md mx-auto"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedUser.documents?.vehiclePhotoUrl && (
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-medium">Vehicle Photo</h3>
+                      <div className="bg-muted/30 p-2 rounded-md">
+                        <img 
+                          src={selectedUser.documents.vehiclePhotoUrl} 
+                          alt="Vehicle" 
+                          className="max-h-60 rounded-md mx-auto"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-end space-x-2 pt-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setSelectedUser(null)}
+                    >
+                      Close
+                    </Button>
+                    <Button 
+                      variant="default" 
+                      size="sm"
+                      className="bg-admin-DEFAULT hover:bg-admin-dark"
+                      onClick={() => {
+                        handleVerifyUser(selectedUser.uid);
+                        setSelectedUser(null);
+                      }}
+                    >
+                      Verify User
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
             <Card className="glass-card animate-scale-in">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">System Alerts</CardTitle>
@@ -542,7 +659,6 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
             
-            {/* Quick actions */}
             <Card className="glass-card animate-scale-in">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Quick Actions</CardTitle>
@@ -566,7 +682,6 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
             
-            {/* System health */}
             <Card className="glass-card animate-scale-in">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">System Health</CardTitle>

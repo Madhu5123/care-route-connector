@@ -1,4 +1,3 @@
-
 import { initializeApp } from "firebase/app";
 import { 
   getAuth, 
@@ -59,6 +58,11 @@ export interface UserProfile {
   verified?: boolean;
   createdAt: Date;
   lastLogin?: Date;
+  documents?: {
+    idCardUrl?: string;
+    selfieUrl?: string;
+    vehiclePhotoUrl?: string;
+  };
 }
 
 // Ambulance interface
@@ -88,7 +92,6 @@ export interface AmbulanceData {
   };
   timestamp: Date;
 }
-
 
 // Authentication functions
 export const signUp = async (
@@ -123,6 +126,13 @@ export const signUp = async (
 export const signIn = async (email: string, password: string): Promise<User> => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    
+    // Check if user is verified
+    const userProfile = await getUserProfile(userCredential.user.uid);
+    
+    if (userProfile && userProfile.verified === false) {
+      throw new Error("Your account is pending approval. Please wait for an administrator to verify your account.");
+    }
     
     // Update last login
     await updateDoc(doc(db, "users", userCredential.user.uid), {
@@ -214,6 +224,49 @@ export const getCurrentAmbulance = async (driverId: string): Promise<AmbulanceDa
     return null;
   } catch (error) {
     console.error("Error getting current ambulance:", error);
+    throw error;
+  }
+};
+
+// Admin functions for user verification
+export const getPendingUsers = async (): Promise<UserProfile[]> => {
+  try {
+    const usersRef = collection(db, "users");
+    const q = query(usersRef, where("verified", "==", false));
+    const querySnapshot = await getDocs(q);
+    
+    const pendingUsers: UserProfile[] = [];
+    querySnapshot.forEach((doc) => {
+      pendingUsers.push(doc.data() as UserProfile);
+    });
+    
+    return pendingUsers;
+  } catch (error) {
+    console.error("Error getting pending users:", error);
+    throw error;
+  }
+};
+
+export const verifyUser = async (uid: string): Promise<void> => {
+  try {
+    await updateDoc(doc(db, "users", uid), {
+      verified: true
+    });
+  } catch (error) {
+    console.error("Error verifying user:", error);
+    throw error;
+  }
+};
+
+export const rejectUser = async (uid: string): Promise<void> => {
+  try {
+    // You could either delete the user or mark them as rejected
+    await updateDoc(doc(db, "users", uid), {
+      verified: null,
+      rejected: true
+    });
+  } catch (error) {
+    console.error("Error rejecting user:", error);
     throw error;
   }
 };

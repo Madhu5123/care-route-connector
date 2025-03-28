@@ -7,7 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
-import { Loader2, UserPlus } from "lucide-react";
+import { Loader2, UserPlus, Upload } from "lucide-react";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const Register = () => {
   const [email, setEmail] = useState("");
@@ -18,7 +21,27 @@ const Register = () => {
   const [organization, setOrganization] = useState("");
   const [role, setRole] = useState<UserRole | "">("");
   const [loading, setLoading] = useState(false);
+  const [idCard, setIdCard] = useState<File | null>(null);
+  const [selfie, setSelfie] = useState<File | null>(null);
+  const [vehiclePhoto, setVehiclePhoto] = useState<File | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const navigate = useNavigate();
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, setFile: React.Dispatch<React.SetStateAction<File | null>>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  const uploadFile = async (file: File, path: string): Promise<string> => {
+    if (!file) return "";
+    
+    const storage = getStorage();
+    const storageRef = ref(storage, `${path}/${Date.now()}_${file.name}`);
+    
+    await uploadBytes(storageRef, file);
+    return await getDownloadURL(storageRef);
+  };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,9 +64,52 @@ const Register = () => {
       return;
     }
 
+    if (!termsAccepted) {
+      toast({
+        title: "Terms and conditions required",
+        description: "Please accept the terms and conditions to continue",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate role-specific document uploads
+    if (role === UserRole.AMBULANCE && (!idCard || !selfie || !vehiclePhoto)) {
+      toast({
+        title: "Documents required",
+        description: "Please upload your ID card, selfie, and ambulance photo",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if ((role === UserRole.POLICE || role === UserRole.HOSPITAL) && (!idCard || !selfie)) {
+      toast({
+        title: "Documents required",
+        description: "Please upload your ID card and selfie",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
+      // Upload documents
+      let documents: Record<string, string> = {};
+      
+      if (idCard) {
+        documents.idCardUrl = await uploadFile(idCard, `users/${role}/id_cards`);
+      }
+      
+      if (selfie) {
+        documents.selfieUrl = await uploadFile(selfie, `users/${role}/selfies`);
+      }
+      
+      if (role === UserRole.AMBULANCE && vehiclePhoto) {
+        documents.vehiclePhotoUrl = await uploadFile(vehiclePhoto, `users/${role}/vehicles`);
+      }
+
       await signUp(
         email, 
         password, 
@@ -52,15 +118,14 @@ const Register = () => {
           displayName,
           phoneNumber,
           organization,
-          verified: role === UserRole.ADMIN ? false : true, // Admins need manual verification
+          verified: false, // All users need verification
+          documents, // Add uploaded document URLs
         }
       );
       
       toast({
         title: "Registration successful",
-        description: role === UserRole.ADMIN 
-          ? "Your account needs admin approval before you can log in."
-          : "You can now log in with your credentials.",
+        description: "Your account needs admin approval before you can log in.",
       });
       
       navigate("/login");
@@ -173,9 +238,83 @@ const Register = () => {
                     <SelectItem value={UserRole.AMBULANCE}>Ambulance Driver</SelectItem>
                     <SelectItem value={UserRole.POLICE}>Traffic Police</SelectItem>
                     <SelectItem value={UserRole.HOSPITAL}>Hospital Staff</SelectItem>
-                    <SelectItem value={UserRole.ADMIN}>System Administrator</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Document upload section */}
+              {role && (
+                <div className="space-y-3 border rounded-md p-3 bg-muted/30">
+                  <h3 className="text-sm font-medium">Required Documents</h3>
+                  
+                  <div className="space-y-2">
+                    <label className="flex flex-col space-y-1">
+                      <span className="text-sm">ID Card/License *</span>
+                      <div className="flex items-center space-x-2 bg-background rounded border p-2">
+                        <Input 
+                          type="file" 
+                          accept="image/*" 
+                          className="max-w-xs"
+                          onChange={(e) => handleFileChange(e, setIdCard)}
+                          disabled={loading}
+                          required
+                        />
+                        {idCard && <span className="text-xs text-green-600">✓ Selected</span>}
+                      </div>
+                    </label>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="flex flex-col space-y-1">
+                      <span className="text-sm">Selfie/Photograph *</span>
+                      <div className="flex items-center space-x-2 bg-background rounded border p-2">
+                        <Input 
+                          type="file" 
+                          accept="image/*" 
+                          className="max-w-xs"
+                          onChange={(e) => handleFileChange(e, setSelfie)}
+                          disabled={loading}
+                          required
+                        />
+                        {selfie && <span className="text-xs text-green-600">✓ Selected</span>}
+                      </div>
+                    </label>
+                  </div>
+
+                  {role === UserRole.AMBULANCE && (
+                    <div className="space-y-2">
+                      <label className="flex flex-col space-y-1">
+                        <span className="text-sm">Ambulance Photo *</span>
+                        <div className="flex items-center space-x-2 bg-background rounded border p-2">
+                          <Input 
+                            type="file" 
+                            accept="image/*" 
+                            className="max-w-xs"
+                            onChange={(e) => handleFileChange(e, setVehiclePhoto)}
+                            disabled={loading}
+                            required
+                          />
+                          {vehiclePhoto && <span className="text-xs text-green-600">✓ Selected</span>}
+                        </div>
+                      </label>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex items-start space-x-2 py-2">
+                <Checkbox 
+                  id="terms" 
+                  checked={termsAccepted} 
+                  onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+                  disabled={loading}
+                />
+                <label 
+                  htmlFor="terms" 
+                  className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  I agree to the terms and conditions of the Emergency Response System
+                </label>
               </div>
 
               <Button type="submit" className="w-full" disabled={loading}>
