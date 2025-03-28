@@ -1,7 +1,16 @@
+
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { UserProfile, UserRole } from "@/lib/firebase";
+import { 
+  UserProfile, 
+  UserRole, 
+  getPendingUsers, 
+  verifyUser, 
+  rejectUser,
+  db
+} from "@/lib/firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
@@ -142,9 +151,11 @@ const AdminDashboard = () => {
   useEffect(() => {
     const loadUsers = async () => {
       try {
+        // Get pending users using the imported function
         const pendingUsersData = await getPendingUsers();
         setPendingUsers(pendingUsersData);
         
+        // Get verified users using Firestore queries
         const usersRef = collection(db, "users");
         const q = query(usersRef, where("verified", "==", true));
         const querySnapshot = await getDocs(q);
