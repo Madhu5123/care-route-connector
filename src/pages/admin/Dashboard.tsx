@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,7 +11,7 @@ import {
   db,
   AmbulanceData
 } from "@/lib/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, Timestamp } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
@@ -32,6 +33,7 @@ import {
   Users 
 } from "lucide-react";
 
+// Add mock data definitions to resolve errors
 const mockAmbulances = [
   {
     id: "amb-001",
@@ -126,9 +128,11 @@ const AdminDashboard = () => {
           activeUsersData.push({
             ...userData,
             uid: doc.id,
-            createdAt: userData.createdAt instanceof Date 
-              ? userData.createdAt 
-              : new Date(userData.createdAt?.seconds * 1000 || 0)
+            createdAt: userData.createdAt instanceof Timestamp 
+              ? new Date(userData.createdAt.seconds * 1000) 
+              : userData.createdAt instanceof Date
+                ? userData.createdAt
+                : new Date()
           });
         });
         

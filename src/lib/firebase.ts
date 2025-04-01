@@ -1,4 +1,3 @@
-
 import { initializeApp } from "firebase/app";
 import { 
   getAuth, 
@@ -19,7 +18,8 @@ import {
   query,
   where,
   getDocs,
-  GeoPoint
+  GeoPoint,
+  Timestamp
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -57,8 +57,8 @@ export interface UserProfile {
   phoneNumber?: string;
   organization?: string;
   verified?: boolean;
-  createdAt: Date;
-  lastLogin?: Date;
+  createdAt: Date | Timestamp;
+  lastLogin?: Date | Timestamp;
   documents?: {
     idCardUrl?: string;
     selfieUrl?: string;
@@ -246,9 +246,11 @@ export const getPendingUsers = async (): Promise<UserProfile[]> => {
       pendingUsers.push({
         ...userData,
         uid: doc.id, // Ensure we have the uid from the document ID
-        createdAt: userData.createdAt instanceof Date 
-          ? userData.createdAt 
-          : new Date(userData.createdAt?.seconds * 1000 || 0) // Convert Firestore timestamp to Date if needed
+        createdAt: userData.createdAt instanceof Timestamp 
+          ? new Date(userData.createdAt.seconds * 1000) 
+          : userData.createdAt instanceof Date
+            ? userData.createdAt
+            : new Date()
       });
     });
     
