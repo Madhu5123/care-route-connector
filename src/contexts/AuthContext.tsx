@@ -37,7 +37,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (user) {
         try {
           const profile = await getUserProfile(user.uid);
-          setUserProfile(profile);
+          
+          // Check if profile was found and if the user is verified
+          if (profile) {
+            if (profile.verified === false) {
+              console.log("User account is not verified yet:", user.uid);
+              toast({
+                title: "Account pending approval",
+                description: "Your account is waiting for administrator approval.",
+                variant: "destructive"
+              });
+              // Don't set the profile if not verified
+              setUserProfile(null);
+              // Sign out the user
+              await auth.signOut();
+              setCurrentUser(null);
+            } else {
+              console.log("User profile loaded successfully:", profile.role);
+              setUserProfile(profile);
+            }
+          } else {
+            console.log("No user profile found for:", user.uid);
+            setUserProfile(null);
+          }
         } catch (err) {
           console.error("Error fetching user profile:", err);
           toast({

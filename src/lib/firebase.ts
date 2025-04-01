@@ -235,14 +235,24 @@ export const getCurrentAmbulance = async (driverId: string): Promise<AmbulanceDa
 export const getPendingUsers = async (): Promise<UserProfile[]> => {
   try {
     const usersRef = collection(db, "users");
+    // Explicitly query where verified is exactly false (not null, undefined, etc.)
     const q = query(usersRef, where("verified", "==", false));
     const querySnapshot = await getDocs(q);
     
     const pendingUsers: UserProfile[] = [];
     querySnapshot.forEach((doc) => {
-      pendingUsers.push(doc.data() as UserProfile);
+      // Add the document data to our array, ensuring we have complete user profiles
+      const userData = doc.data() as UserProfile;
+      pendingUsers.push({
+        ...userData,
+        uid: doc.id, // Ensure we have the uid from the document ID
+        createdAt: userData.createdAt instanceof Date 
+          ? userData.createdAt 
+          : new Date(userData.createdAt?.seconds * 1000 || 0) // Convert Firestore timestamp to Date if needed
+      });
     });
     
+    console.log("Pending users found:", pendingUsers.length);
     return pendingUsers;
   } catch (error) {
     console.error("Error getting pending users:", error);

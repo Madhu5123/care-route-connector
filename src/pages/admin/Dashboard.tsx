@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,7 +32,6 @@ import {
   Users 
 } from "lucide-react";
 
-// Mock data for ambulances
 const mockAmbulances = [
   {
     id: "amb-001",
@@ -64,7 +62,6 @@ const mockAmbulances = [
   }
 ];
 
-// Mock system events/logs
 const mockEvents = [
   {
     id: "event-001",
@@ -98,19 +95,24 @@ const AdminDashboard = () => {
   const [activeUsers, setActiveUsers] = useState<UserProfile[]>([]);
   const [isVerifying, setIsVerifying] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && (!isAuthenticated || userProfile?.role !== "admin")) {
+    if (!loading && (!isAuthenticated || userProfile?.role !== UserRole.ADMIN)) {
       navigate("/login");
     }
   }, [loading, isAuthenticated, userProfile, navigate]);
 
   useEffect(() => {
     const loadUsers = async () => {
+      setIsLoading(true);
       try {
+        console.log("Loading users, user authenticated:", isAuthenticated, "role:", userProfile?.role);
+        
         // Get pending users using the imported function
         const pendingUsersData = await getPendingUsers();
+        console.log("Pending users loaded:", pendingUsersData.length);
         setPendingUsers(pendingUsersData);
         
         // Get verified users using Firestore queries
@@ -120,9 +122,17 @@ const AdminDashboard = () => {
         
         const activeUsersData: UserProfile[] = [];
         querySnapshot.forEach((doc) => {
-          activeUsersData.push(doc.data() as UserProfile);
+          const userData = doc.data() as UserProfile;
+          activeUsersData.push({
+            ...userData,
+            uid: doc.id,
+            createdAt: userData.createdAt instanceof Date 
+              ? userData.createdAt 
+              : new Date(userData.createdAt?.seconds * 1000 || 0)
+          });
         });
         
+        console.log("Active users loaded:", activeUsersData.length);
         setActiveUsers(activeUsersData);
       } catch (error) {
         console.error("Error loading users:", error);
@@ -131,10 +141,12 @@ const AdminDashboard = () => {
           description: "Failed to load users. Please try again.",
           variant: "destructive",
         });
+      } finally {
+        setIsLoading(false);
       }
     };
     
-    if (isAuthenticated && userProfile?.role === "admin") {
+    if (isAuthenticated && userProfile?.role === UserRole.ADMIN) {
       loadUsers();
     }
   }, [isAuthenticated, userProfile]);
@@ -192,7 +204,7 @@ const AdminDashboard = () => {
     setSelectedUser(user);
   };
 
-  if (loading) {
+  if (loading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-pulse text-center">
@@ -271,7 +283,7 @@ const AdminDashboard = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="space-y-6 lg:col-span-2">
-            {pendingUsers.length > 0 && (
+            {pendingUsers.length > 0 ? (
               <Card className="glass-card animate-scale-in border-admin-light">
                 <CardHeader className="pb-3 bg-admin-light/20">
                   <CardTitle className="text-lg flex items-center">
@@ -355,6 +367,19 @@ const AdminDashboard = () => {
                       </TableBody>
                     </Table>
                   </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="glass-card animate-scale-in border-admin-light">
+                <CardHeader className="pb-3 bg-admin-light/20">
+                  <CardTitle className="text-lg flex items-center">
+                    <UserPlus className="h-5 w-5 mr-2 text-admin-DEFAULT" />
+                    Pending Approvals
+                  </CardTitle>
+                  <CardDescription>New users requiring verification</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-4 text-center py-8">
+                  <p className="text-muted-foreground">No pending user approvals at this time</p>
                 </CardContent>
               </Card>
             )}
