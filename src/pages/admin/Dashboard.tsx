@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,7 +12,7 @@ import {
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -31,108 +30,6 @@ import {
   UserPlus, 
   Users 
 } from "lucide-react";
-
-const mockUsers = [
-  {
-    uid: "1",
-    email: "driver1@example.com",
-    role: UserRole.AMBULANCE,
-    displayName: "John Driver",
-    organization: "City Ambulance Services",
-    verified: true,
-    createdAt: new Date(2023, 5, 15),
-  },
-  {
-    uid: "2",
-    email: "officer1@example.com",
-    role: UserRole.POLICE,
-    displayName: "Sarah Officer",
-    organization: "Central Police Station",
-    verified: true,
-    createdAt: new Date(2023, 6, 10),
-  },
-  {
-    uid: "3",
-    email: "doctor1@example.com",
-    role: UserRole.HOSPITAL,
-    displayName: "Dr. Michael Carter",
-    organization: "City Hospital",
-    verified: true,
-    createdAt: new Date(2023, 7, 5),
-  },
-  {
-    uid: "4",
-    email: "pending@example.com",
-    role: UserRole.HOSPITAL,
-    displayName: "Dr. Lisa Wong",
-    organization: "Memorial Hospital",
-    verified: false,
-    createdAt: new Date(2023, 8, 20),
-  },
-  {
-    uid: "5",
-    email: "newdriver@example.com",
-    role: UserRole.AMBULANCE,
-    displayName: "Robert Johnson",
-    organization: "Express Medical Transport",
-    verified: false,
-    createdAt: new Date(2023, 9, 1),
-  },
-];
-
-const mockAmbulances = [
-  {
-    id: "amb1",
-    vehicleId: "KA-01-1234",
-    driverId: "1",
-    status: "available",
-    lastMaintenance: new Date(2023, 8, 15),
-    nextMaintenance: new Date(2023, 10, 15),
-  },
-  {
-    id: "amb2",
-    vehicleId: "KA-01-5678",
-    driverId: "5",
-    status: "on_duty",
-    lastMaintenance: new Date(2023, 7, 10),
-    nextMaintenance: new Date(2023, 9, 10),
-  },
-  {
-    id: "amb3",
-    vehicleId: "KA-01-9012",
-    driverId: "",
-    status: "maintenance",
-    lastMaintenance: new Date(2023, 9, 1),
-    nextMaintenance: new Date(2023, 11, 1),
-  },
-];
-
-const mockEvents = [
-  {
-    id: "event1",
-    type: "emergency",
-    description: "Heart attack patient picked up",
-    ambulanceId: "KA-01-5678",
-    timestamp: new Date(2023, 9, 5, 10, 30),
-    severity: "high",
-  },
-  {
-    id: "event2",
-    type: "system",
-    description: "New user registered",
-    userId: "4",
-    timestamp: new Date(2023, 9, 4, 15, 45),
-    severity: "info",
-  },
-  {
-    id: "event3",
-    type: "maintenance",
-    description: "Ambulance KA-01-9012 scheduled for maintenance",
-    ambulanceId: "KA-01-9012",
-    timestamp: new Date(2023, 9, 3, 9, 15),
-    severity: "medium",
-  },
-];
 
 const AdminDashboard = () => {
   const { userProfile, loading, isAuthenticated } = useAuth();
@@ -195,7 +92,7 @@ const AdminDashboard = () => {
         
         toast({
           title: "User verified",
-          description: `${verifiedUser.displayName} has been approved and can now log in.`,
+          description: `${verifiedUser.displayName || verifiedUser.email} has been approved and can now log in.`,
         });
       }
     } catch (error) {
@@ -339,7 +236,7 @@ const AdminDashboard = () => {
                           <TableRow key={user.uid}>
                             <TableCell>
                               <div>
-                                <p className="font-medium">{user.displayName}</p>
+                                <p className="font-medium">{user.displayName || "No Name"}</p>
                                 <p className="text-xs text-muted-foreground">{user.email}</p>
                               </div>
                             </TableCell>
@@ -359,12 +256,13 @@ const AdminDashboard = () => {
                                 {user.role}
                               </Badge>
                             </TableCell>
-                            <TableCell>{user.organization}</TableCell>
+                            <TableCell>{user.organization || "Not specified"}</TableCell>
                             <TableCell>
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => viewUserDocuments(user)}
+                                disabled={!user.documents}
                               >
                                 View Docs
                               </Button>
@@ -577,7 +475,7 @@ const AdminDashboard = () => {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg">User Documents</CardTitle>
                   <CardDescription>
-                    Reviewing documents for {selectedUser.displayName}
+                    Reviewing documents for {selectedUser.displayName || selectedUser.email}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">

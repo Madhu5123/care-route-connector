@@ -1,3 +1,4 @@
+
 import { initializeApp } from "firebase/app";
 import { 
   getAuth, 
@@ -110,6 +111,7 @@ export const signUp = async (
       email: user.email || email,
       role,
       createdAt: new Date(),
+      verified: false, // Explicitly set to false to require admin approval
       ...userData
     };
     
