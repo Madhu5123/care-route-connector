@@ -40,7 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           // Check if profile was found and if the user is verified
           if (profile) {
-            if (profile.verified === false) {
+            if (profile.role !== UserRole.ADMIN && profile.verified === false) {
               console.log("User account is not verified yet:", user.uid);
               toast({
                 title: "Account pending approval",

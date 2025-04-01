@@ -9,16 +9,20 @@ import { signIn } from '@/lib/firebase';
 import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import LogoutButton from '@/components/common/LogoutButton';
+import { AlertCircle, Loader2 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const { isAuthenticated, userRole } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setLoginError(null);
 
     try {
       await signIn(email, password);
@@ -26,11 +30,18 @@ const Login = () => {
         title: "Login successful",
         description: "Welcome back! You have successfully logged in.",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login failed:", error);
+      
+      if (error.message.includes("pending approval")) {
+        setLoginError("Your account is pending approval by an administrator. You'll be able to log in after verification.");
+      } else {
+        setLoginError(error.message || "Invalid email or password. Please try again.");
+      }
+      
       toast({
         title: "Login failed",
-        description: "Invalid email or password. Please try again.",
+        description: error.message || "Invalid email or password. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -55,6 +66,14 @@ const Login = () => {
         </CardHeader>
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
+            {loginError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Login Failed</AlertTitle>
+                <AlertDescription>{loginError}</AlertDescription>
+              </Alert>
+            )}
+            
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input 
@@ -87,7 +106,14 @@ const Login = () => {
               className="w-full" 
               disabled={isLoading}
             >
-              {isLoading ? "Logging in..." : "Login"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Logging in...
+                </>
+              ) : (
+                "Login"
+              )}
             </Button>
             <div className="text-center text-sm">
               Don't have an account?{" "}

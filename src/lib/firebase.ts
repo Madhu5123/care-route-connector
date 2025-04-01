@@ -130,9 +130,17 @@ export const signIn = async (email: string, password: string): Promise<User> => 
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     
     // Check if user is verified
-    const userProfile = await getUserProfile(userCredential.user.uid);
+    const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
     
-    if (userProfile && userProfile.verified === false) {
+    if (!userDoc.exists()) {
+      await firebaseSignOut(auth); // Sign out the user immediately
+      throw new Error("User account not found. Please register first.");
+    }
+    
+    const userProfile = userDoc.data() as UserProfile;
+    
+    // Check verification status and role
+    if (userProfile.role !== UserRole.ADMIN && userProfile.verified === false) {
       await firebaseSignOut(auth); // Sign out the user immediately
       throw new Error("Your account is pending approval. Please wait for an administrator to verify your account.");
     }
