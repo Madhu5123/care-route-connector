@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,12 +8,13 @@ import {
   getPendingUsers, 
   verifyUser, 
   rejectUser,
-  db
+  db,
+  AmbulanceData
 } from "@/lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/components/ui/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -30,6 +32,65 @@ import {
   UserPlus, 
   Users 
 } from "lucide-react";
+
+// Mock data for ambulances
+const mockAmbulances = [
+  {
+    id: "amb-001",
+    driverId: "driver-1",
+    vehicleId: "KA-01-1234",
+    status: "available",
+    currentLocation: { lat: 12.9716, lng: 77.5946 },
+    timestamp: new Date(),
+    lastMaintenance: new Date(2023, 5, 15)
+  },
+  {
+    id: "amb-002",
+    driverId: "driver-2",
+    vehicleId: "KA-01-5678",
+    status: "on_duty",
+    currentLocation: { lat: 12.9716, lng: 77.5946 },
+    destination: { lat: 13.0827, lng: 80.2707, name: "Apollo Hospital" },
+    timestamp: new Date(),
+    lastMaintenance: new Date(2023, 8, 10)
+  },
+  {
+    id: "amb-003",
+    driverId: "driver-3",
+    vehicleId: "KA-01-9012",
+    status: "maintenance",
+    timestamp: new Date(),
+    lastMaintenance: new Date(2023, 9, 5)
+  }
+];
+
+// Mock system events/logs
+const mockEvents = [
+  {
+    id: "event-001",
+    description: "System update failed: Database connection timeout",
+    severity: "high",
+    timestamp: new Date(2023, 10, 1, 14, 30)
+  },
+  {
+    id: "event-002",
+    description: "New hospital registered: City General Hospital",
+    severity: "low",
+    timestamp: new Date(2023, 10, 2, 9, 15)
+  },
+  {
+    id: "event-003",
+    description: "Ambulance KA-01-1234 maintenance scheduled",
+    severity: "medium",
+    timestamp: new Date(2023, 10, 3, 11, 45)
+  },
+  {
+    id: "event-004",
+    description: "User verification process completed for 5 new users",
+    severity: "low",
+    timestamp: new Date(2023, 10, 4, 16, 20)
+  }
+];
 
 const AdminDashboard = () => {
   const { userProfile, loading, isAuthenticated } = useAuth();
