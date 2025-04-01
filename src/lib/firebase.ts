@@ -131,6 +131,7 @@ export const signIn = async (email: string, password: string): Promise<User> => 
     const userProfile = await getUserProfile(userCredential.user.uid);
     
     if (userProfile && userProfile.verified === false) {
+      await firebaseSignOut(auth); // Sign out the user immediately
       throw new Error("Your account is pending approval. Please wait for an administrator to verify your account.");
     }
     

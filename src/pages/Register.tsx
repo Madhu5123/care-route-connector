@@ -118,7 +118,7 @@ const Register = () => {
       
       toast({
         title: "Registration successful",
-        description: "Your account needs admin approval before you can log in.",
+        description: "Your account is pending admin approval. You will be able to log in after verification.",
       });
       
       navigate("/login");
