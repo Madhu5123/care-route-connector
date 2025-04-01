@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,6 +7,7 @@ import {
   getPendingUsers, 
   verifyUser, 
   rejectUser,
+  getUsersByRole,
   db,
   AmbulanceData
 } from "@/lib/firebase";
@@ -22,10 +22,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { 
   Activity, 
   AlertTriangle, 
+  Ambulance,
   CheckCircle2, 
   Clock, 
   FileText, 
+  Hospital,
   MapPin, 
+  Police,
   Settings, 
   Shield, 
   UserCheck, 
@@ -94,10 +97,13 @@ const mockEvents = [
 const AdminDashboard = () => {
   const { userProfile, loading, isAuthenticated } = useAuth();
   const [pendingUsers, setPendingUsers] = useState<UserProfile[]>([]);
-  const [activeUsers, setActiveUsers] = useState<UserProfile[]>([]);
+  const [ambulanceUsers, setAmbulanceUsers] = useState<UserProfile[]>([]);
+  const [hospitalUsers, setHospitalUsers] = useState<UserProfile[]>([]);
+  const [policeUsers, setPoliceUsers] = useState<UserProfile[]>([]);
   const [isVerifying, setIsVerifying] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<UserRole | 'pending'>('pending');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -112,32 +118,24 @@ const AdminDashboard = () => {
       try {
         console.log("Loading users, user authenticated:", isAuthenticated, "role:", userProfile?.role);
         
-        // Get pending users using the imported function
+        // Get pending users that need verification
         const pendingUsersData = await getPendingUsers();
-        console.log("Pending users loaded:", pendingUsersData.length);
+        console.log("Pending service users loaded:", pendingUsersData.length);
         setPendingUsers(pendingUsersData);
         
-        // Get verified users using Firestore queries
-        const usersRef = collection(db, "users");
-        const q = query(usersRef, where("verified", "==", true));
-        const querySnapshot = await getDocs(q);
+        // Get users by role
+        const ambulanceUsersData = await getUsersByRole(UserRole.AMBULANCE);
+        setAmbulanceUsers(ambulanceUsersData);
+        console.log("Ambulance users loaded:", ambulanceUsersData.length);
         
-        const activeUsersData: UserProfile[] = [];
-        querySnapshot.forEach((doc) => {
-          const userData = doc.data() as UserProfile;
-          activeUsersData.push({
-            ...userData,
-            uid: doc.id,
-            createdAt: userData.createdAt instanceof Timestamp 
-              ? new Date(userData.createdAt.seconds * 1000) 
-              : userData.createdAt instanceof Date
-                ? userData.createdAt
-                : new Date()
-          });
-        });
+        const hospitalUsersData = await getUsersByRole(UserRole.HOSPITAL);
+        setHospitalUsers(hospitalUsersData);
+        console.log("Hospital users loaded:", hospitalUsersData.length);
         
-        console.log("Active users loaded:", activeUsersData.length);
-        setActiveUsers(activeUsersData);
+        const policeUsersData = await getUsersByRole(UserRole.POLICE);
+        setPoliceUsers(policeUsersData);
+        console.log("Police users loaded:", policeUsersData.length);
+        
       } catch (error) {
         console.error("Error loading users:", error);
         toast({
@@ -163,13 +161,21 @@ const AdminDashboard = () => {
       
       const userToVerify = pendingUsers.find(u => u.uid === uid);
       if (userToVerify) {
-        const verifiedUser = { ...userToVerify, verified: true };
+        // Update appropriate role-based user list
+        if (userToVerify.role === UserRole.AMBULANCE) {
+          setAmbulanceUsers([...ambulanceUsers, {...userToVerify, verified: true}]);
+        } else if (userToVerify.role === UserRole.HOSPITAL) {
+          setHospitalUsers([...hospitalUsers, {...userToVerify, verified: true}]);
+        } else if (userToVerify.role === UserRole.POLICE) {
+          setPoliceUsers([...policeUsers, {...userToVerify, verified: true}]);
+        }
+        
+        // Remove from pending users
         setPendingUsers(pendingUsers.filter(u => u.uid !== uid));
-        setActiveUsers([...activeUsers, verifiedUser]);
         
         toast({
-          title: "User verified",
-          description: `${verifiedUser.displayName || verifiedUser.email} has been approved and can now log in.`,
+          title: `${userToVerify.role.charAt(0).toUpperCase() + userToVerify.role.slice(1)} verified`,
+          description: `${userToVerify.displayName || userToVerify.email} has been approved and can now log in.`,
         });
       }
     } catch (error) {
@@ -219,6 +225,7 @@ const AdminDashboard = () => {
     );
   }
 
+  // Render the role-specific verification tabs
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-6xl mx-auto">
@@ -234,10 +241,10 @@ const AdminDashboard = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Users</p>
-                  <h3 className="text-2xl font-bold">{activeUsers.length + pendingUsers.length}</h3>
+                  <p className="text-sm text-muted-foreground">Pending Verifications</p>
+                  <h3 className="text-2xl font-bold">{pendingUsers.length}</h3>
                 </div>
-                <Users className="h-8 w-8 text-admin-DEFAULT opacity-80" />
+                <UserPlus className="h-8 w-8 text-admin-DEFAULT opacity-80" />
               </div>
             </CardContent>
           </Card>
@@ -246,12 +253,10 @@ const AdminDashboard = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Active Ambulances</p>
-                  <h3 className="text-2xl font-bold">
-                    {mockAmbulances.filter(a => a.status !== "maintenance").length}
-                  </h3>
+                  <p className="text-sm text-muted-foreground">Ambulance Services</p>
+                  <h3 className="text-2xl font-bold">{ambulanceUsers.filter(u => u.verified).length}</h3>
                 </div>
-                <Activity className="h-8 w-8 text-ambulance-DEFAULT opacity-80" />
+                <Ambulance className="h-8 w-8 text-ambulance-DEFAULT opacity-80" />
               </div>
             </CardContent>
           </Card>
@@ -260,12 +265,10 @@ const AdminDashboard = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Connected Hospitals</p>
-                  <h3 className="text-2xl font-bold">
-                    {activeUsers.filter(u => u.role === UserRole.HOSPITAL).length}
-                  </h3>
+                  <p className="text-sm text-muted-foreground">Hospital Services</p>
+                  <h3 className="text-2xl font-bold">{hospitalUsers.filter(u => u.verified).length}</h3>
                 </div>
-                <MapPin className="h-8 w-8 text-hospital-DEFAULT opacity-80" />
+                <Hospital className="h-8 w-8 text-hospital-DEFAULT opacity-80" />
               </div>
             </CardContent>
           </Card>
@@ -275,11 +278,9 @@ const AdminDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Police Units</p>
-                  <h3 className="text-2xl font-bold">
-                    {activeUsers.filter(u => u.role === UserRole.POLICE).length}
-                  </h3>
+                  <h3 className="text-2xl font-bold">{policeUsers.filter(u => u.verified).length}</h3>
                 </div>
-                <Shield className="h-8 w-8 text-police-DEFAULT opacity-80" />
+                <Police className="h-8 w-8 text-police-DEFAULT opacity-80" />
               </div>
             </CardContent>
           </Card>
@@ -287,106 +288,285 @@ const AdminDashboard = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="space-y-6 lg:col-span-2">
-            {pendingUsers.length > 0 ? (
-              <Card className="glass-card animate-scale-in border-admin-light">
-                <CardHeader className="pb-3 bg-admin-light/20">
-                  <CardTitle className="text-lg flex items-center">
-                    <UserPlus className="h-5 w-5 mr-2 text-admin-DEFAULT" />
-                    Pending Approvals
-                  </CardTitle>
-                  <CardDescription>New users requiring verification</CardDescription>
-                </CardHeader>
-                <CardContent className="pt-4">
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Role</TableHead>
-                          <TableHead>Organization</TableHead>
-                          <TableHead>Documents</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {pendingUsers.map((user) => (
-                          <TableRow key={user.uid}>
-                            <TableCell>
-                              <div>
-                                <p className="font-medium">{user.displayName || "No Name"}</p>
-                                <p className="text-xs text-muted-foreground">{user.email}</p>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant="outline"
-                                className={
-                                  user.role === UserRole.AMBULANCE
-                                    ? "bg-ambulance-light/50 text-ambulance-dark border-ambulance-light"
-                                    : user.role === UserRole.POLICE
-                                    ? "bg-police-light/50 text-police-dark border-police-light"
-                                    : user.role === UserRole.HOSPITAL
-                                    ? "bg-hospital-light/50 text-hospital-dark border-hospital-light"
-                                    : "bg-admin-light/50 text-admin-dark border-admin-light"
-                                }
-                              >
-                                {user.role}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>{user.organization || "Not specified"}</TableCell>
-                            <TableCell>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => viewUserDocuments(user)}
-                                disabled={!user.documents}
-                              >
-                                View Docs
-                              </Button>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex space-x-2">
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  className="bg-admin-DEFAULT hover:bg-admin-dark"
-                                  onClick={() => handleVerifyUser(user.uid)}
-                                  disabled={isVerifying}
-                                >
-                                  <UserCheck className="h-4 w-4 mr-1" />
-                                  {isVerifying ? "Verifying..." : "Verify"}
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-destructive hover:text-destructive"
-                                  onClick={() => handleRejectUser(user.uid)}
-                                >
-                                  Reject
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+            <Card className="glass-card animate-scale-in overflow-hidden">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Service Verification</CardTitle>
+                <CardDescription>Manage verification of ambulance, hospital, and police services</CardDescription>
+              </CardHeader>
+              <Tabs defaultValue="pending" onValueChange={(value) => setActiveTab(value as UserRole | 'pending')}>
+                <div className="px-6">
+                  <TabsList className="w-full">
+                    <TabsTrigger value="pending" className="flex-1">
+                      Pending ({pendingUsers.length})
+                    </TabsTrigger>
+                    <TabsTrigger value={UserRole.AMBULANCE} className="flex-1">
+                      Ambulance ({ambulanceUsers.length})
+                    </TabsTrigger>
+                    <TabsTrigger value={UserRole.HOSPITAL} className="flex-1">
+                      Hospitals ({hospitalUsers.length})
+                    </TabsTrigger>
+                    <TabsTrigger value={UserRole.POLICE} className="flex-1">
+                      Police ({policeUsers.length})
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
+                
+                <TabsContent value="pending" className="pt-2 pb-4">
+                  <div className="px-6">
+                    {pendingUsers.length > 0 ? (
+                      <div className="rounded-md border overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Name</TableHead>
+                              <TableHead>Role</TableHead>
+                              <TableHead>Organization</TableHead>
+                              <TableHead>Documents</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {pendingUsers.map((user) => (
+                              <TableRow key={user.uid}>
+                                <TableCell>
+                                  <div>
+                                    <p className="font-medium">{user.displayName || "No Name"}</p>
+                                    <p className="text-xs text-muted-foreground">{user.email}</p>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      user.role === UserRole.AMBULANCE
+                                        ? "bg-ambulance-light/50 text-ambulance-dark border-ambulance-light"
+                                        : user.role === UserRole.POLICE
+                                        ? "bg-police-light/50 text-police-dark border-police-light"
+                                        : user.role === UserRole.HOSPITAL
+                                        ? "bg-hospital-light/50 text-hospital-dark border-hospital-light"
+                                    }
+                                  >
+                                    {user.role}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>{user.organization || "Not specified"}</TableCell>
+                                <TableCell>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => viewUserDocuments(user)}
+                                    disabled={!user.documents}
+                                  >
+                                    View Docs
+                                  </Button>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex space-x-2">
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      className="bg-admin-DEFAULT hover:bg-admin-dark"
+                                      onClick={() => handleVerifyUser(user.uid)}
+                                      disabled={isVerifying}
+                                    >
+                                      <UserCheck className="h-4 w-4 mr-1" />
+                                      {isVerifying ? "Verifying..." : "Verify"}
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="text-destructive hover:text-destructive"
+                                      onClick={() => handleRejectUser(user.uid)}
+                                    >
+                                      Reject
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">No pending service verifications at this time</p>
+                      </div>
+                    )}
                   </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card className="glass-card animate-scale-in border-admin-light">
-                <CardHeader className="pb-3 bg-admin-light/20">
-                  <CardTitle className="text-lg flex items-center">
-                    <UserPlus className="h-5 w-5 mr-2 text-admin-DEFAULT" />
-                    Pending Approvals
-                  </CardTitle>
-                  <CardDescription>New users requiring verification</CardDescription>
-                </CardHeader>
-                <CardContent className="pt-4 text-center py-8">
-                  <p className="text-muted-foreground">No pending user approvals at this time</p>
-                </CardContent>
-              </Card>
-            )}
+                </TabsContent>
+                
+                <TabsContent value={UserRole.AMBULANCE} className="pt-2 pb-4">
+                  <div className="px-6">
+                    <div className="rounded-md border overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Organization</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Joined</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {ambulanceUsers.map((user) => (
+                            <TableRow key={user.uid}>
+                              <TableCell>
+                                <div>
+                                  <p className="font-medium">{user.displayName || "No Name"}</p>
+                                  <p className="text-xs text-muted-foreground">{user.email}</p>
+                                </div>
+                              </TableCell>
+                              <TableCell>{user.organization || "Not specified"}</TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    user.verified 
+                                      ? "bg-green-100 text-green-800 border-green-300" 
+                                      : "bg-yellow-100 text-yellow-800 border-yellow-300"
+                                  }
+                                >
+                                  {user.verified ? "Verified" : "Pending"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {user.createdAt instanceof Date 
+                                  ? user.createdAt.toLocaleDateString() 
+                                  : "Unknown"}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => viewUserDocuments(user)}
+                                >
+                                  <Settings className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value={UserRole.HOSPITAL} className="pt-2 pb-4">
+                  <div className="px-6">
+                    <div className="rounded-md border overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Hospital Name</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Joined</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {hospitalUsers.map((user) => (
+                            <TableRow key={user.uid}>
+                              <TableCell>
+                                <p className="font-medium">{user.organization || user.displayName || "No Name"}</p>
+                              </TableCell>
+                              <TableCell>{user.email}</TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    user.verified 
+                                      ? "bg-green-100 text-green-800 border-green-300" 
+                                      : "bg-yellow-100 text-yellow-800 border-yellow-300"
+                                  }
+                                >
+                                  {user.verified ? "Verified" : "Pending"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {user.createdAt instanceof Date 
+                                  ? user.createdAt.toLocaleDateString() 
+                                  : "Unknown"}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => viewUserDocuments(user)}
+                                >
+                                  <Settings className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value={UserRole.POLICE} className="pt-2 pb-4">
+                  <div className="px-6">
+                    <div className="rounded-md border overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Station</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Joined</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {policeUsers.map((user) => (
+                            <TableRow key={user.uid}>
+                              <TableCell>
+                                <div>
+                                  <p className="font-medium">{user.displayName || "No Name"}</p>
+                                  <p className="text-xs text-muted-foreground">{user.email}</p>
+                                </div>
+                              </TableCell>
+                              <TableCell>{user.organization || "Not specified"}</TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    user.verified 
+                                      ? "bg-green-100 text-green-800 border-green-300" 
+                                      : "bg-yellow-100 text-yellow-800 border-yellow-300"
+                                  }
+                                >
+                                  {user.verified ? "Verified" : "Pending"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {user.createdAt instanceof Date 
+                                  ? user.createdAt.toLocaleDateString() 
+                                  : "Unknown"}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => viewUserDocuments(user)}
+                                >
+                                  <Settings className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </Card>
 
             <Card className="glass-card animate-scale-in overflow-hidden">
               <CardHeader className="pb-2">
@@ -423,7 +603,7 @@ const AdminDashboard = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {activeUsers.map((user) => (
+                          {ambulanceUsers.map((user) => (
                             <TableRow key={user.uid}>
                               <TableCell>
                                 <div>
@@ -693,37 +873,3 @@ const AdminDashboard = () => {
                     <Badge variant="outline" className="bg-green-100 text-green-800">
                       Operational
                     </Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Database</span>
-                    <Badge variant="outline" className="bg-green-100 text-green-800">
-                      Online
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Location Services</span>
-                    <Badge variant="outline" className="bg-green-100 text-green-800">
-                      Operational
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Notification System</span>
-                    <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
-                      Degraded
-                    </Badge>
-                  </div>
-                  
-                  <Button variant="outline" className="w-full mt-2">
-                    View Full System Status
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default AdminDashboard;

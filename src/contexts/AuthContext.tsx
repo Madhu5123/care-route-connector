@@ -38,22 +38,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const profile = await getUserProfile(user.uid);
           
-          // Check if profile was found and if the user is verified
+          // Check if profile was found
           if (profile) {
-            if (profile.role !== UserRole.ADMIN && profile.verified === false) {
-              console.log("User account is not verified yet:", user.uid);
-              toast({
-                title: "Account pending approval",
-                description: "Your account is waiting for administrator approval.",
-                variant: "destructive"
-              });
-              // Don't set the profile if not verified
-              setUserProfile(null);
-              // Sign out the user
-              await auth.signOut();
-              setCurrentUser(null);
+            // Only restrict login for service roles (ambulance, hospital, police)
+            if (profile.role !== UserRole.ADMIN) {
+              if ([UserRole.AMBULANCE, UserRole.HOSPITAL, UserRole.POLICE].includes(profile.role) 
+                  && profile.verified === false) {
+                console.log(`${profile.role} account is not verified yet:`, user.uid);
+                toast({
+                  title: `${profile.role.charAt(0).toUpperCase() + profile.role.slice(1)} account pending approval`,
+                  description: `Your ${profile.role} account is waiting for administrator verification.`,
+                  variant: "destructive"
+                });
+                // Don't set the profile if not verified
+                setUserProfile(null);
+                // Sign out the user
+                await auth.signOut();
+                setCurrentUser(null);
+              } else {
+                console.log("User profile loaded successfully:", profile.role);
+                setUserProfile(profile);
+              }
             } else {
-              console.log("User profile loaded successfully:", profile.role);
+              // Admin users are always verified
+              console.log("Admin user logged in:", user.uid);
               setUserProfile(profile);
             }
           } else {

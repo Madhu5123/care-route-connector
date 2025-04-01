@@ -139,10 +139,11 @@ export const signIn = async (email: string, password: string): Promise<User> => 
     
     const userProfile = userDoc.data() as UserProfile;
     
-    // Check verification status and role
-    if (userProfile.role !== UserRole.ADMIN && userProfile.verified === false) {
+    // Check verification status for service roles (ambulance, hospital, police)
+    const serviceRoles = [UserRole.AMBULANCE, UserRole.HOSPITAL, UserRole.POLICE];
+    if (serviceRoles.includes(userProfile.role) && userProfile.verified === false) {
       await firebaseSignOut(auth); // Sign out the user immediately
-      throw new Error("Your account is pending approval. Please wait for an administrator to verify your account.");
+      throw new Error(`Your ${userProfile.role} account is pending approval. Please wait for an administrator to verify your account.`);
     }
     
     // Update last login
@@ -243,8 +244,11 @@ export const getCurrentAmbulance = async (driverId: string): Promise<AmbulanceDa
 export const getPendingUsers = async (): Promise<UserProfile[]> => {
   try {
     const usersRef = collection(db, "users");
-    // Explicitly query where verified is exactly false (not null, undefined, etc.)
-    const q = query(usersRef, where("verified", "==", false));
+    // Only get service role users (ambulance, hospital, police) that need verification
+    const q = query(usersRef, 
+      where("verified", "==", false),
+      where("role", "in", [UserRole.AMBULANCE, UserRole.HOSPITAL, UserRole.POLICE])
+    );
     const querySnapshot = await getDocs(q);
     
     const pendingUsers: UserProfile[] = [];
@@ -262,10 +266,37 @@ export const getPendingUsers = async (): Promise<UserProfile[]> => {
       });
     });
     
-    console.log("Pending users found:", pendingUsers.length);
+    console.log("Pending service users found:", pendingUsers.length);
     return pendingUsers;
   } catch (error) {
     console.error("Error getting pending users:", error);
+    throw error;
+  }
+};
+
+export const getUsersByRole = async (role: UserRole): Promise<UserProfile[]> => {
+  try {
+    const usersRef = collection(db, "users");
+    const q = query(usersRef, where("role", "==", role));
+    const querySnapshot = await getDocs(q);
+    
+    const users: UserProfile[] = [];
+    querySnapshot.forEach((doc) => {
+      const userData = doc.data() as UserProfile;
+      users.push({
+        ...userData,
+        uid: doc.id,
+        createdAt: userData.createdAt instanceof Timestamp 
+          ? new Date(userData.createdAt.seconds * 1000) 
+          : userData.createdAt instanceof Date
+            ? userData.createdAt
+            : new Date()
+      });
+    });
+    
+    return users;
+  } catch (error) {
+    console.error(`Error getting ${role} users:`, error);
     throw error;
   }
 };

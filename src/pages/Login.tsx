@@ -34,7 +34,7 @@ const Login = () => {
       console.error("Login failed:", error);
       
       if (error.message.includes("pending approval")) {
-        setLoginError("Your account is pending approval by an administrator. You'll be able to log in after verification.");
+        setLoginError(error.message);
       } else {
         setLoginError(error.message || "Invalid email or password. Please try again.");
       }
